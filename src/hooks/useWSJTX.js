@@ -120,7 +120,7 @@ export function useWSJTX(enabled = true) {
       // Data is flowing if there are active clients or recent decodes
       hasDataFlowing.current = !!(
         json.enabled &&
-        (json.stats?.activeClients > 0 || json.decodes?.length > 0 || json.qsos?.length > 0)
+        (json.stats?.activeClients > 0 || json.decodes?.length > 0 || json.qsos?.length > 0 || json.wspr?.length > 0)
       );
       lastTimestamp.current = Date.now();
       setLoading(false);

@@ -11479,6 +11479,14 @@ function handleWSJTXMessage(msg, state) {
         power: msg.power,
         timestamp: msg.timestamp,
       };
+      // Resolve grid to lat/lon for map plotting
+      if (msg.grid) {
+        const coords = gridToLatLon(msg.grid);
+        if (coords) {
+          wsprDecode.lat = coords.latitude;
+          wsprDecode.lon = coords.longitude;
+        }
+      }
       if (msg.isNew) {
         state.wspr.push(wsprDecode);
         if (state.wspr.length > 100) state.wspr.shift();
