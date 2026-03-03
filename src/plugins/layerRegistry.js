@@ -45,6 +45,30 @@ const layerPlugins = [
 // Memoize the layer list - it never changes at runtime
 let cachedLayers = null;
 
+// Pinned keyboard shortcuts for layer toggling.
+// Keys here won't reshuffle when layers are added/removed/renamed.
+// Layers without a pinned shortcut get auto-assigned (first unique letter).
+const PINNED_SHORTCUTS = {
+  grayline: 'g',
+  citylights: 'c',
+  satellites: 's',
+  wxradar: 'w',
+  earthquakes: 'e',
+  wildfires: 'f',
+  lightning: 'l',
+  aurora: 'a',
+  rbn: 'r',
+  'voacap-heatmap': 'v',
+  'muf-map': 'm',
+  'great-circle': 'd',
+  'owm-clouds': 'o',
+  'tornado-warnings': 't',
+  contest_qsos: 'q',
+  n3fjp_logged_qsos: 'n',
+  wspr: 'p',
+  floods: 'i',
+};
+
 export function getAllLayers() {
   if (cachedLayers) return cachedLayers;
 
@@ -59,6 +83,7 @@ export function getAllLayers() {
       defaultOpacity: plugin.metadata.defaultOpacity || 0.6,
       category: plugin.metadata.category || 'overlay',
       localOnly: plugin.metadata.localOnly || false,
+      shortcut: PINNED_SHORTCUTS[plugin.metadata.id] || null,
       hook: plugin.useLayer,
     }));
 
