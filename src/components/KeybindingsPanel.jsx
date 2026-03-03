@@ -159,7 +159,7 @@ export const KeybindingsPanel = ({ isOpen, onClose, keybindings, nodeId }) => {
                 lineHeight: '1.3',
               }}
             >
-              {t('keybindings.panel.toggleDeDx', 'Toggle De and Dx Markers')}
+              {t('keybindings.panel.toggleDeDx', 'Toggle DE and DX Markers')}
             </span>
           </div>
         </div>
@@ -384,7 +384,7 @@ export const KeybindingsPanel = ({ isOpen, onClose, keybindings, nodeId }) => {
                   lineHeight: '1.3',
                 }}
               >
-                {t('keybindings.panel.toggleDeDx', 'Toggle De and Dx Markers')}
+                {t('keybindings.panel.toggleDeDx', 'Toggle DE and DX Markers')}
               </span>
             </div>
           </div>
