@@ -249,15 +249,24 @@ setup_repository() {
     # Prevent file permission changes from blocking future updates
     git config core.fileMode false 2>/dev/null
     
-    # Install npm dependencies
-    npm install --include=dev
-    
+    # Install npm dependencies.
+    # --ignore-scripts skips lifecycle hooks (postinstall, prepare, etc.) that are
+    # irrelevant or harmful on ARM Linux — most notably electron-winstaller's
+    # postinstall, which tries to copy vendor/7z-arm.exe and fails on a Pi because
+    # that Windows-only file is not shipped for Linux targets.
+    # Husky git-hooks (prepare) are also skipped, which is fine on a production Pi.
+    ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install --include=dev --ignore-scripts
+
     # Download vendor assets (fonts, Leaflet) for self-hosting — no external CDN requests
     echo -e "${BLUE}>>> Downloading vendor assets for privacy...${NC}"
     bash scripts/vendor-download.sh || echo -e "${YELLOW}⚠ Vendor download failed — will fall back to CDN${NC}"
-    
+
     # Build frontend for production
     npm run build
+
+    # Remove dev dependencies (electron, electron-builder, etc.) after the build.
+    # This frees ~500 MB of node_modules that are not needed at runtime on the Pi.
+    npm prune --omit=dev
     
     # Make update script executable
     chmod +x scripts/update.sh 2>/dev/null || true
