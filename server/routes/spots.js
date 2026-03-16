@@ -3,8 +3,6 @@
  * Lines ~2657-2830 of original server.js
  */
 
-const { logWarn } = require('../utils/logging');
-
 module.exports = function (app, ctx) {
   const { fetch, logDebug, logErrorOnce } = ctx;
 
@@ -26,7 +24,6 @@ module.exports = function (app, ctx) {
 
       // Log diagnostic info about the response
       if (Array.isArray(data) && data.length > 0) {
-        const sample = data[0];
         logDebug(`[POTA] API returned ${data.length} spots.`);
 
         // Count coordinate coverage
@@ -66,7 +63,6 @@ module.exports = function (app, ctx) {
 
       // Log diagnostic info about the response
       if (Array.isArray(data) && data.length > 0) {
-        const sample = data[0];
         logDebug(`[WWFF] API returned ${data.length} spots.`);
       }
 
@@ -103,33 +99,28 @@ module.exports = function (app, ctx) {
       const response = await fetch('https://storage.sota.org.uk/summitslist.csv');
       const data = await response.text();
       const Papa = require('papaparse');
-
-      Papa.parse(data, {
+      const csvresults = Papa.parse(data, {
         skipFirstNLines: 1,
         header: true,
         skipEmptyLines: true,
-        complete: function (results) {
-          let summit = {};
-          if (results.errors.length > 0) {
-            logWarn('[SOTA] Papa.parse returned error code ', results.errors);
-          } else {
-            results.data.forEach((obj) => {
-              summit[obj['SummitCode']] = {
-                latitude: obj['Latitude'],
-                longitude: obj['Longitude'],
-                name: obj['SummitName'],
-                altM: obj['AltM'],
-                points: obj['Points'],
-              };
-            });
-
-            sotaSummits = {
-              data: summit,
-              timestamp: now,
-            };
-          }
-        },
       });
+
+      let summit = {};
+
+      csvresults.data.forEach((obj) => {
+        summit[obj['SummitCode']] = {
+          latitude: obj['Latitude'],
+          longitude: obj['Longitude'],
+          name: obj['SummitName'],
+          altM: obj['AltM'],
+          points: obj['Points'],
+        };
+      });
+
+      sotaSummits = {
+        data: summit,
+        timestamp: now,
+      };
     } catch (error) {
       logErrorOnce('[SOTA]', error.message);
     }
@@ -174,7 +165,6 @@ module.exports = function (app, ctx) {
         logDebug('[SOTA] Summits Cache empty');
       }
       if (Array.isArray(data) && data.length > 0) {
-        const sample = data[0];
         sotaEpoch = data[0].epoch;
         logDebug(`[SOTA] API returned ${data.length} spots.`);
       }
