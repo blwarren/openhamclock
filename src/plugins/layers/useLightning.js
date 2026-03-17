@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { addMinimizeToggle } from './addMinimizeToggle.js';
 import { makeDraggable } from './makeDraggable.js';
 
+import './../../lang/i18n';
+
 // Lightning Detection Plugin - Real-time lightning strike visualization
 // Data source: Blitzortung.org WebSocket API
 // Update: Real-time via WebSocket
