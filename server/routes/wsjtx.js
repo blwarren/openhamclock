@@ -514,7 +514,7 @@ module.exports = function (app, ctx) {
           // 1. Try dxGrid from WSJT-X (if it knows the DX station's grid)
           if (dxGrid) {
             const coords = gridToLatLon(dxGrid);
-            if (coords) {
+            if (coords !== null) {
               dxLat = coords.lat;
               dxLon = coords.lon;
             }
