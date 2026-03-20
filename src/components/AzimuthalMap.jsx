@@ -56,6 +56,43 @@ const normalizeBandKey = (band) => {
   return raw;
 };
 
+// Countries style: consistent color per country name (matches WorldMap)
+const COUNTRY_COLORS = [
+  '#e6194b',
+  '#3cb44b',
+  '#4363d8',
+  '#f58231',
+  '#911eb4',
+  '#42d4f4',
+  '#f032e6',
+  '#bfef45',
+  '#fabed4',
+  '#469990',
+  '#dcbeff',
+  '#9A6324',
+  '#800000',
+  '#aaffc3',
+  '#808000',
+  '#000075',
+  '#e6beff',
+  '#ff6961',
+  '#77dd77',
+  '#fdfd96',
+  '#84b6f4',
+  '#fdcae1',
+  '#c1e1c1',
+  '#b39eb5',
+  '#ffb347',
+];
+function hashCountryColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash << 5) - hash + name.charCodeAt(i);
+    hash |= 0;
+  }
+  return COUNTRY_COLORS[Math.abs(hash) % COUNTRY_COLORS.length];
+}
+
 const bandFromAnyFrequency = (freq) => {
   if (freq == null || freq === '') return null;
   const n = parseFloat(freq);
@@ -218,7 +255,12 @@ export default function AzimuthalMap({
   }, [lat0, lon0, size.w > 0 ? 1 : 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resolve tile URL template for current style
-  const useTiles = tileStyle && tileStyle !== 'plain' && MAP_STYLES[tileStyle] && !MAP_STYLES[tileStyle].isCanvas;
+  const useTiles =
+    tileStyle &&
+    tileStyle !== 'plain' &&
+    MAP_STYLES[tileStyle] &&
+    !MAP_STYLES[tileStyle].isCanvas &&
+    !MAP_STYLES[tileStyle].countriesOverlay;
   const tileUrlTemplate = useTiles
     ? tileStyle === 'MODIS'
       ? (() => {
@@ -336,15 +378,17 @@ export default function AzimuthalMap({
 
     const { cx, cy, R, scale } = vs;
 
-    // Background — dark ocean
-    ctx.fillStyle = '#0a0f1a';
+    const isCountriesStyle = tileStyle === 'countries';
+
+    // Background — dark ocean (or blue for countries style)
+    ctx.fillStyle = isCountriesStyle ? '#2a5a9a' : '#0a0f1a';
     ctx.fillRect(0, 0, size.w, size.h);
 
     // Globe circle
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.fillStyle = '#0d1a2d';
+    ctx.fillStyle = isCountriesStyle ? '#4a90d9' : '#0d1a2d';
     ctx.fill();
     ctx.clip();
 
@@ -373,17 +417,26 @@ export default function AzimuthalMap({
       }
     }
 
-    // Fall back to GeoJSON land masses if no tile imagery
-    if (!tileImageDrawn) {
+    // Fall back to GeoJSON land masses if no tile imagery (or always for countries style)
+    if (!tileImageDrawn || isCountriesStyle) {
       const geo = geoRef.current;
       if (geo?.features) {
-        ctx.fillStyle = '#1a2a3a';
-        ctx.strokeStyle = '#2a3a4a';
-        ctx.lineWidth = 0.5;
-
         geo.features.forEach((feature) => {
           const geom = feature.geometry;
           if (!geom) return;
+
+          // Countries style: per-country colors
+          if (isCountriesStyle) {
+            const name = feature.properties?.name || feature.id || 'Unknown';
+            ctx.fillStyle = hashCountryColor(name);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+          } else {
+            ctx.fillStyle = '#1a2a3a';
+            ctx.strokeStyle = '#2a3a4a';
+            ctx.lineWidth = 0.5;
+          }
+
           const rings =
             geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : [];
 
@@ -764,6 +817,7 @@ export default function AzimuthalMap({
     toCanvas,
     useTiles,
     tilesReady,
+    tileStyle,
     lowMemoryMode,
     vs,
   ]);
