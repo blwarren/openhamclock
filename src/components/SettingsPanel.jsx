@@ -2451,6 +2451,7 @@ export const SettingsPanel = ({
                   { key: 'space-weather', label: '☀️ Space Weather' },
                   { key: 'hazards', label: '⚠️ Natural Hazards' },
                   { key: 'geology', label: '🌍 Geology' },
+                  { key: 'fun', label: '🎉 Community' },
                 ];
 
                 const nonSatLayers = layers.filter((l) => l.category !== 'satellites');
