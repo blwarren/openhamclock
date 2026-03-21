@@ -379,7 +379,7 @@
   "station.settings.timezone.group.southAmerica": "Amèrica del Sud",
   "station.settings.tip.env": "💡 Consell: Per a una configuració permanent, copia <envExample>.env.example</envExample> a <env>.env</env> i configura CALLSIGN i LOCATOR",
   "station.settings.title": "Configuració de l’estació",
-  "station.settings.useLocation": "📍 Usar la meva ubicació actual",
+  "station.settings.useLocation": "Usar la meva ubicació actual",
   "station.settings.useLocation.error1": "No s’ha pogut obtenir la ubicació. Introdueix-la manualment.",
   "station.settings.useLocation.error2": "La geolocalització no és compatible amb el teu navegador.",
   "station.settings.welcome": "👋 Benvingut/da a OpenHamClock!",

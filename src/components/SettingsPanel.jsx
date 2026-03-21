@@ -698,7 +698,8 @@ export const SettingsPanel = ({
                 color: 'var(--text-secondary)',
               }}
             >
-              Looking for Rotator / N3FJP / other add-ons? See <b>Settings → Integrations</b>.
+              Looking for Rotator / N3FJP / other add-ons? See{' '}
+              <b>Settings → {t('station.settings.tab.title.integrations')}</b>.
             </div>
 
             {/* Callsign */}
@@ -848,7 +849,7 @@ export const SettingsPanel = ({
                 marginBottom: '20px',
               }}
             >
-              {t('station.settings.useLocation')}
+              📍 {t('station.settings.useLocation')}
             </button>
 
             {/* Mouse wheel zoom factor */}
@@ -896,7 +897,7 @@ export const SettingsPanel = ({
                   letterSpacing: '1px',
                 }}
               >
-                {t('station.settings.timezone')}
+                🕐 {t('station.settings.timezone')}
               </label>
               <select
                 value={timezone}
