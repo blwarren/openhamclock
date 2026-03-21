@@ -22,6 +22,7 @@ export const POTAPanel = ({
   return (
     <ActivatePanel
       name={'POTA'}
+      shape="▲"
       data={data}
       loading={loading}
       lastUpdated={lastUpdated}

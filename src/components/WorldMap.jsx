@@ -118,6 +118,7 @@ export const WorldMap = ({
   rotatorIsStale = false,
   rotatorControlEnabled,
   onRotatorTurnRequest,
+  onMapReady,
 }) => {
   const { t } = useTranslation();
   const mapRef = useRef(null);
@@ -126,8 +127,8 @@ export const WorldMap = ({
   const terminatorRef = useRef(null);
   const deMarkerRef = useRef([]);
   const dxMarkerRef = useRef([]);
-  const sunMarkerRef = useRef(null);
-  const moonMarkerRef = useRef(null);
+  const sunMarkerRef = useRef([]);
+  const moonMarkerRef = useRef([]);
   const potaMarkersRef = useRef([]);
   const wwffMarkersRef = useRef([]);
   const sotaMarkersRef = useRef([]);
@@ -144,6 +145,15 @@ export const WorldMap = ({
   const rotatorTurnRef = useRef(onRotatorTurnRequest);
   const rotatorEnabledRef = useRef(rotatorControlEnabled);
   const deRef = useRef(deLocation);
+
+  // Azimuthal overlay Leaflet map (from AzimuthalMap component)
+  const azimuthalMapRef = useRef(null);
+  const [azimuthalMapReady, setAzimuthalMapReady] = useState(false);
+
+  const handleAzimuthalMapReady = useCallback((map) => {
+    azimuthalMapRef.current = map;
+    setAzimuthalMapReady(!!map);
+  }, []);
 
   // DX highlight state (style existing polylines via refs; no layer rebuilds)
   const dxLineIndexRef = useRef(new Map());
@@ -367,7 +377,12 @@ export const WorldMap = ({
     }
   };
   const storedSettings = getStoredMapSettings();
-  const [mapStyle, setMapStyle] = useState(storedSettings.mapStyle || 'dark');
+  // Migration: saved isAzimuthal → split into projection + style
+  const initialStyle = storedSettings.isAzimuthal ? 'dark' : storedSettings.mapStyle || 'dark';
+  const initialProjection = storedSettings.isAzimuthal ? 'azimuthal' : storedSettings.mapProjection || 'mercator';
+  const [mapStyle, setMapStyle] = useState(initialStyle);
+  const [mapProjection, setMapProjection] = useState(initialProjection);
+  const isAzimuthal = mapProjection === 'azimuthal';
   const [bandColorVersion, setBandColorVersion] = useState(0);
   const [editingBand, setEditingBand] = useState(null);
   const [editingColor, setEditingColor] = useState('#ff6666');
@@ -520,6 +535,7 @@ export const WorldMap = ({
         JSON.stringify({
           ...existing,
           mapStyle,
+          mapProjection,
           center: mapView.center,
           zoom: mapView.zoom,
           wheelPxPerZoomLevel: getScaledZoomLevel(mouseZoom),
@@ -528,7 +544,7 @@ export const WorldMap = ({
     } catch (e) {
       console.error('Failed to save map settings:', e);
     }
-  }, [mapStyle, mapView, mouseZoom]);
+  }, [mapStyle, mapProjection, mapView, mouseZoom]);
 
   // Initialize map
   useEffect(() => {
@@ -624,9 +640,13 @@ export const WorldMap = ({
     }, 60000);
 
     map.on('moveend', () => {
-      const center = map.getCenter();
-      const zoom = map.getZoom();
-      setMapView({ center: [center.lat, center.lng], zoom });
+      try {
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        setMapView({ center: [center.lat, center.lng], zoom });
+      } catch {
+        // Leaflet may throw if map panes are gone during resize/unmount
+      }
     });
 
     // Click handler:
@@ -659,6 +679,7 @@ export const WorldMap = ({
     });
 
     mapInstanceRef.current = map;
+    if (onMapReady) onMapReady(map);
 
     // Apply initial map lock state if saved
     if (mapLocked) {
@@ -676,8 +697,12 @@ export const WorldMap = ({
     }
 
     const resizeObserver = new ResizeObserver(() => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize();
+      try {
+        if (mapInstanceRef.current && mapRef.current && mapRef.current.isConnected) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      } catch {
+        // Leaflet may throw if the container was removed mid-resize
       }
     });
     resizeObserver.observe(mapRef.current);
@@ -685,8 +710,12 @@ export const WorldMap = ({
     return () => {
       clearInterval(terminatorInterval);
       resizeObserver.disconnect();
-      map.remove();
       mapInstanceRef.current = null;
+      try {
+        map.remove();
+      } catch {
+        // Leaflet may throw during teardown if DOM was already removed
+      }
     };
   }, [leafletReady]); // leafletReady flips to true once window.L is confirmed available
 
@@ -1035,10 +1064,23 @@ export const WorldMap = ({
     const map = mapInstanceRef.current;
 
     const updateCelestial = () => {
-      if (sunMarkerRef.current) map.removeLayer(sunMarkerRef.current);
-      if (moonMarkerRef.current) map.removeLayer(moonMarkerRef.current);
+      // Remove previous markers
+      sunMarkerRef.current.forEach((m) => {
+        try {
+          map.removeLayer(m);
+        } catch (e) {}
+      });
+      moonMarkerRef.current.forEach((m) => {
+        try {
+          map.removeLayer(m);
+        } catch (e) {}
+      });
+      sunMarkerRef.current = [];
+      moonMarkerRef.current = [];
 
       const now = new Date();
+      // World copy offsets so sun/moon appear on all visible map copies
+      const worldOffsets = [-360, 0, 360];
 
       // Sun marker — SVG sun with rays
       const sunPos = getSunPosition(now);
@@ -1052,17 +1094,18 @@ export const WorldMap = ({
         </g>
         <circle cx="14" cy="14" r="7" fill="url(#sg)" stroke="#ffaa00" stroke-width="1"/>
       </svg>`;
-      const sunIcon = L.divIcon({
-        className: 'sun-marker-icon',
-        html: sunSvg,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-      });
-      sunMarkerRef.current = L.marker([sunPos.lat, sunPos.lon], {
-        icon: sunIcon,
-      })
-        .bindPopup(`<b>Subsolar Point</b><br>${sunPos.lat.toFixed(2)}°, ${sunPos.lon.toFixed(2)}°`)
-        .addTo(map);
+      for (const offset of worldOffsets) {
+        const sunIcon = L.divIcon({
+          className: 'sun-marker-icon',
+          html: sunSvg,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+        const m = L.marker([sunPos.lat, sunPos.lon + offset], { icon: sunIcon })
+          .bindPopup(`<b>Subsolar Point</b><br>${sunPos.lat.toFixed(2)}°, ${sunPos.lon.toFixed(2)}°`)
+          .addTo(map);
+        sunMarkerRef.current.push(m);
+      }
 
       // Moon marker — SVG crescent moon
       const moonPos = getMoonPosition(now);
@@ -1071,17 +1114,18 @@ export const WorldMap = ({
         <circle cx="12" cy="12" r="9" fill="url(#mg)" stroke="#aaaacc" stroke-width="1"/>
         <circle cx="16" cy="10" r="7" fill="rgba(0,0,20,0.85)"/>
       </svg>`;
-      const moonIcon = L.divIcon({
-        className: 'moon-marker-icon',
-        html: moonSvg,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
-      });
-      moonMarkerRef.current = L.marker([moonPos.lat, moonPos.lon], {
-        icon: moonIcon,
-      })
-        .bindPopup(`<b>Sublunar Point</b><br>${moonPos.lat.toFixed(2)}°, ${moonPos.lon.toFixed(2)}°`)
-        .addTo(map);
+      for (const offset of worldOffsets) {
+        const moonIcon = L.divIcon({
+          className: 'moon-marker-icon',
+          html: moonSvg,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+        const m = L.marker([moonPos.lat, moonPos.lon + offset], { icon: moonIcon })
+          .bindPopup(`<b>Sublunar Point</b><br>${moonPos.lat.toFixed(2)}°, ${moonPos.lon.toFixed(2)}°`)
+          .addTo(map);
+        moonMarkerRef.current.push(m);
+      }
     };
 
     // Initial render
@@ -1091,8 +1135,16 @@ export const WorldMap = ({
     const interval = setInterval(updateCelestial, 60000);
     return () => {
       clearInterval(interval);
-      if (sunMarkerRef.current) map.removeLayer(sunMarkerRef.current);
-      if (moonMarkerRef.current) map.removeLayer(moonMarkerRef.current);
+      sunMarkerRef.current.forEach((m) => {
+        try {
+          map.removeLayer(m);
+        } catch (e) {}
+      });
+      moonMarkerRef.current.forEach((m) => {
+        try {
+          map.removeLayer(m);
+        } catch (e) {}
+      });
     };
   }, []);
 
@@ -1799,7 +1851,7 @@ export const WorldMap = ({
   return (
     <div style={{ position: 'relative', height: '100%', minHeight: '200px' }}>
       {/* Azimuthal equidistant projection (canvas-based) */}
-      {mapStyle === 'azimuthal' && (
+      {isAzimuthal && (
         <AzimuthalMap
           deLocation={deLocation}
           dxLocation={dxLocation}
@@ -1808,6 +1860,7 @@ export const WorldMap = ({
           potaSpots={potaSpots}
           wwffSpots={wwffSpots}
           sotaSpots={sotaSpots}
+          wwbotaSpots={wwbotaSpots}
           dxPaths={dxPaths}
           dxFilters={dxFilters}
           mapBandFilter={mapBandFilter}
@@ -1817,6 +1870,7 @@ export const WorldMap = ({
           showPOTA={showPOTA}
           showWWFF={showWWFF}
           showSOTA={showSOTA}
+          showWWBOTA={showWWBOTA}
           showPSKReporter={showPSKReporter}
           showPSKPaths={showPSKPaths}
           showWSJTX={showWSJTX}
@@ -1825,6 +1879,10 @@ export const WorldMap = ({
           callsign={callsign}
           hideOverlays={hideOverlays}
           hideUi={mapUiHidden}
+          tileStyle={mapStyle}
+          gibsOffset={gibsOffset}
+          lowMemoryMode={lowMemoryMode}
+          onMapReady={handleAzimuthalMapReady}
         />
       )}
 
@@ -1835,32 +1893,32 @@ export const WorldMap = ({
           width: '100%',
           borderRadius: '8px',
           background: mapStyle === 'countries' ? '#4a90d9' : undefined,
-          display: mapStyle === 'azimuthal' ? 'none' : undefined,
+          display: isAzimuthal ? 'none' : undefined,
         }}
       />
 
-      {/* Render all plugin layers (Leaflet only) */}
-      {mapStyle !== 'azimuthal' &&
-        mapInstanceRef.current &&
-        getAllLayers().map((layerDef) => (
-          <PluginLayer
-            key={layerDef.id}
-            plugin={layerDef}
-            enabled={pluginLayerStates[layerDef.id]?.enabled ?? layerDef.defaultEnabled}
-            opacity={pluginLayerStates[layerDef.id]?.opacity ?? layerDef.defaultOpacity}
-            mapBandFilter={mapBandFilter}
-            config={pluginLayerStates[layerDef.id]?.config ?? layerDef.config}
-            map={mapInstanceRef.current}
-            satellites={satellites}
-            allUnits={allUnits}
-            callsign={callsign}
-            locator={deLocator}
-            lowMemoryMode={lowMemoryMode}
-          />
-        ))}
+      {/* Render plugin layers on active map (Mercator or Azimuthal) */}
+      {/* Always render all PluginLayer components to preserve React hook count.
+          Pass map={null} when no active map — hooks inside guard against it. */}
+      {getAllLayers().map((layerDef) => (
+        <PluginLayer
+          key={layerDef.id}
+          plugin={layerDef}
+          enabled={pluginLayerStates[layerDef.id]?.enabled ?? layerDef.defaultEnabled}
+          opacity={pluginLayerStates[layerDef.id]?.opacity ?? layerDef.defaultOpacity}
+          mapBandFilter={mapBandFilter}
+          config={pluginLayerStates[layerDef.id]?.config ?? layerDef.config}
+          map={isAzimuthal ? azimuthalMapRef.current : mapInstanceRef.current}
+          satellites={satellites}
+          allUnits={allUnits}
+          callsign={callsign}
+          locator={deLocator}
+          lowMemoryMode={lowMemoryMode}
+        />
+      ))}
 
       {/* Unified map control dock */}
-      {mapStyle !== 'azimuthal' && (
+      {!isAzimuthal && (
         <div
           style={{
             position: 'absolute',
@@ -2059,34 +2117,78 @@ export const WorldMap = ({
         </div>
       )}
 
-      {/* Map style dropdown */}
+      {/* Map style dropdown + projection toggle */}
       {!mapUiHidden && (
-        <select
-          value={mapStyle}
-          id="mapStyle"
-          onChange={(e) => setMapStyle(e.target.value)}
+        <div
           style={{
             position: 'absolute',
             top: '10px',
             right: '10px',
-            background: 'rgba(0, 0, 0, 0.8)',
-            border: '1px solid #444',
-            color: '#00ffcc',
-            padding: '6px 10px',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontFamily: 'JetBrains Mono',
-            cursor: 'pointer',
             zIndex: 1000,
-            outline: 'none',
+            display: 'flex',
+            gap: '6px',
+            alignItems: 'center',
           }}
         >
-          {Object.entries(MAP_STYLES).map(([key, style]) => (
-            <option key={key} value={key}>
-              {style.name}
-            </option>
-          ))}
-        </select>
+          {/* Projection toggle */}
+          <div
+            style={{
+              display: 'flex',
+              background: 'rgba(0, 0, 0, 0.8)',
+              border: '1px solid #444',
+              borderRadius: '4px',
+              overflow: 'hidden',
+            }}
+          >
+            {[
+              { key: 'mercator', label: 'Flat' },
+              { key: 'azimuthal', label: 'Azimuthal' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMapProjection(key)}
+                style={{
+                  background: mapProjection === key ? '#00ffcc' : 'transparent',
+                  color: mapProjection === key ? '#000' : '#888',
+                  border: 'none',
+                  padding: '5px 8px',
+                  fontSize: '10px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  cursor: 'pointer',
+                  fontWeight: mapProjection === key ? 'bold' : 'normal',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Style dropdown */}
+          <select
+            value={mapStyle}
+            id="mapStyle"
+            onChange={(e) => setMapStyle(e.target.value)}
+            style={{
+              background: 'rgba(0, 0, 0, 0.8)',
+              border: '1px solid #444',
+              color: '#00ffcc',
+              padding: '6px 10px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontFamily: 'JetBrains Mono',
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            {Object.entries(MAP_STYLES)
+              .filter(([, style]) => !style.legacy)
+              .map(([key, style]) => (
+                <option key={key} value={key}>
+                  {style.name}
+                </option>
+              ))}
+          </select>
+        </div>
       )}
 
       {/* Satellite toggle */}
@@ -2205,66 +2307,6 @@ export const WorldMap = ({
                   </button>
                 );
               })}
-            </div>
-          )}
-          {showPOTA && (
-            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-              <span
-                style={{
-                  background: '#44cc44',
-                  color: '#000',
-                  padding: '2px 5px',
-                  borderRadius: '3px',
-                  fontWeight: '600',
-                }}
-              >
-                ▲&nbsp;POTA
-              </span>
-            </div>
-          )}
-          {showWWFF && (
-            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-              <span
-                style={{
-                  background: '#a3f3a3',
-                  color: '#000',
-                  padding: '2px 5px',
-                  borderRadius: '3px',
-                  fontWeight: '600',
-                }}
-              >
-                ▼&nbsp;WWFF
-              </span>
-            </div>
-          )}
-          {showSOTA && (
-            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-              <span
-                style={{
-                  background: '#ff9632',
-                  color: '#000',
-                  padding: '2px 5px',
-                  borderRadius: '3px',
-                  fontWeight: '600',
-                }}
-              >
-                ◆&nbsp;SOTA
-              </span>
-            </div>
-          )}
-          {showWWBOTA && (
-            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-              <span
-                style={{
-                  background: '#8b7fff',
-                  color: '#000',
-                  padding: '2px 5px',
-                  borderRadius: '3px',
-                  fontWeight: '600',
-                }}
-              >
-                ■&nbsp;WWBOTA
-              </span>
             </div>
           )}
         </div>

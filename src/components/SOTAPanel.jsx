@@ -11,8 +11,8 @@ export const SOTAPanel = ({
   lastChecked,
   showOnMap,
   onToggleMap,
-  showLabelsOnMap,
-  onToggleLabelsOnMap = true,
+  showLabelsOnMap = true,
+  onToggleLabelsOnMap,
   onSpotClick,
   onHoverSpot,
   filters,
@@ -22,6 +22,7 @@ export const SOTAPanel = ({
   return (
     <ActivatePanel
       name={'SOTA'}
+      shape="◆"
       data={data}
       loading={loading}
       lastUpdated={lastUpdated}

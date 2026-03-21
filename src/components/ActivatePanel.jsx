@@ -8,6 +8,7 @@ import { IconSearch, IconRefresh, IconMap, IconTag } from './Icons.jsx';
 
 export const ActivatePanel = ({
   name,
+  shape,
   data,
   loading,
   lastUpdated,
@@ -47,7 +48,28 @@ export const ActivatePanel = ({
         }}
       >
         <span>
-          ▲ {name} ACTIVATORS {data?.length > 0 ? `(${data.length})` : ''}
+          {shape && shade ? (
+            <span
+              style={{
+                display: 'inline-block',
+                background: shade,
+                color: '#000',
+                padding: '1px 4px',
+                borderRadius: '3px',
+                fontWeight: '700',
+                fontSize: '10px',
+                marginRight: '4px',
+                lineHeight: 1.2,
+                verticalAlign: 'middle',
+              }}
+              title={`Map marker: ${shade}`}
+            >
+              {shape}
+            </span>
+          ) : (
+            '▲ '
+          )}
+          {name} ACTIVATORS {data?.length > 0 ? `(${data.length})` : ''}
           {checkedTime && (
             <span
               style={{
@@ -147,7 +169,7 @@ export const ActivatePanel = ({
                   gridTemplateColumns: '62px 72px 58px 1fr',
                   gap: '4px',
                   padding: '3px 0',
-                  borderBottom: i < data.length - 1 ? '1px solid var(--border-color)' : 'none',
+                  borderBottom: i < spots.length - 1 ? '1px solid var(--border-color)' : 'none',
                   cursor: 'pointer',
                 }}
                 onMouseEnter={() => onHoverSpot?.(spot)}

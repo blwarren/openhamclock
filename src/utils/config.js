@@ -59,6 +59,8 @@ export const DEFAULT_CONFIG = {
     dxCluster: 30000, // 30 seconds (was 5 sec)
     terminator: 60000, // 1 minute
   },
+  dxClusterSource: 'dxspider-proxy',
+  customDxCluster: { enabled: false, host: '', port: 7300 },
 };
 
 // Cache for server config
@@ -118,6 +120,7 @@ export const loadConfig = () => {
       showPota: serverConfig.showPota ?? config.showPota,
       showDxPaths: serverConfig.showDxPaths ?? config.showDxPaths,
       panels: { ...config.panels, ...serverConfig.panels },
+      dxClusterSource: serverConfig.dxClusterSource || config.dxClusterSource,
     };
   }
 
@@ -182,6 +185,7 @@ export const saveConfig = (config) => {
 const SYNC_KEYS = [
   'openhamclock_config',
   'openhamclock_dockLayout',
+  'openhamclock_dxFavorites',
   'openhamclock_dxFilters',
   'openhamclock_dxLocation',
   'openhamclock_dxLocked',
@@ -395,6 +399,7 @@ export const MAP_STYLES = {
     url: '',
     attribution: 'Azimuthal Equidistant',
     isCanvas: true,
+    legacy: true, // Hidden from dropdown — projection is now a separate toggle
   },
 };
 
