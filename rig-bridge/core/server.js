@@ -754,14 +754,22 @@ function buildSetupHtml(version, firstRunToken = null) {
 
         <div id="wsjtxOpts" style="display:none;">
           <label>OpenHamClock Server URL</label>
-          <input type="text" id="wsjtxUrl" placeholder="https://openhamclock.com">
+          <div style="display:flex; gap:6px; align-items:center; margin-bottom:4px;">
+            <input type="text" id="wsjtxUrl" placeholder="https://openhamclock.com" style="flex:1; margin-bottom:0;">
+            <button class="btn btn-secondary" onclick="fetchWsjtxCredentials()" id="fetchCredsBtn" style="width:auto; padding:6px 12px; font-size:12px; white-space:nowrap;">🔗 Fetch credentials</button>
+          </div>
+          <div id="fetchCredsStatus" class="help-text" style="margin-bottom:10px;"></div>
 
           <label>Relay Key</label>
           <input type="text" id="wsjtxKey" placeholder="Your relay authentication key">
 
           <label>Session ID</label>
           <input type="text" id="wsjtxSession" placeholder="Your browser session ID">
-          <div class="help-text">The session ID links your relayed decodes to your OpenHamClock dashboard.</div>
+          <div class="help-text">
+            The session ID links your relayed decodes to your OpenHamClock dashboard.
+            Find it in OpenHamClock → Settings → Station → Rig Control → WSJT-X Relay,
+            or click <strong>Fetch credentials</strong> above to fill both fields automatically.
+          </div>
 
           <div class="row">
             <div>
@@ -877,6 +885,39 @@ function buildSetupHtml(version, firstRunToken = null) {
     function toggleWsjtxOpts() {
       const enabled = document.getElementById('wsjtxEnabled').checked;
       document.getElementById('wsjtxOpts').style.display = enabled ? 'block' : 'none';
+    }
+
+    async function fetchWsjtxCredentials() {
+      const url = document.getElementById('wsjtxUrl').value.trim();
+      const statusEl = document.getElementById('fetchCredsStatus');
+      const btn = document.getElementById('fetchCredsBtn');
+      if (!url) {
+        statusEl.style.color = '#f87171';
+        statusEl.textContent = '❌ Enter the OpenHamClock Server URL first.';
+        return;
+      }
+      btn.disabled = true;
+      statusEl.style.color = '#9ca3af';
+      statusEl.textContent = 'Fetching credentials…';
+      try {
+        const res = await fetch(url.replace(/\/$/, '') + '/api/wsjtx/relay-credentials');
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          statusEl.style.color = '#f87171';
+          statusEl.textContent = '❌ ' + (body.error || 'Server returned ' + res.status);
+          return;
+        }
+        const { relayKey } = await res.json();
+        document.getElementById('wsjtxKey').value = relayKey;
+        statusEl.style.color = '#4ade80';
+        statusEl.textContent =
+          '✅ Relay key fetched. Now copy your Session ID from OpenHamClock → Settings → Station → Rig Control → WSJT-X Relay and paste it below.';
+      } catch (e) {
+        statusEl.style.color = '#f87171';
+        statusEl.textContent = '❌ Could not reach ' + url + ' — is OpenHamClock running?';
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     function toggleWsjtxMulticastOpts() {

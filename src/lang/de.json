@@ -458,5 +458,15 @@
   "app.rigControl.error.unauthorized": "Authentifizierung fehlgeschlagen – API-Token in den Rig-Steuerungseinstellungen prüfen",
   "station.settings.rigControl.apiToken": "API-Token",
   "station.settings.rigControl.apiToken.hint": "Von der rig-bridge-Einrichtungsseite kopieren (http://localhost:5555)",
-  "station.settings.rigControl.apiToken.placeholder": "Token hier einfügen"
+  "station.settings.rigControl.apiToken.placeholder": "Token hier einfügen",
+  "station.settings.rigControl.wsjtxRelay.title": "WSJT-X Relay",
+  "station.settings.rigControl.wsjtxRelay.hint": "Forward your FT8/FT4 decodes to this OpenHamClock server in real time via the connected rig-bridge.",
+  "station.settings.rigControl.wsjtxRelay.sessionId": "Your Session ID",
+  "station.settings.rigControl.wsjtxRelay.sessionId.hint": "Links relayed decodes to your dashboard. Auto-generated — do not share.",
+  "station.settings.rigControl.wsjtxRelay.configure": "Configure Relay on Rig Bridge",
+  "station.settings.rigControl.wsjtxRelay.status.pushing": "Configuring...",
+  "station.settings.rigControl.wsjtxRelay.status.ok": "Relay configured — WSJT-X decodes will appear in OpenHamClock",
+  "station.settings.rigControl.wsjtxRelay.status.error.nokey": "Relay not enabled on this server — WSJTX_RELAY_KEY not set",
+  "station.settings.rigControl.wsjtxRelay.status.error.norig": "Enter rig-bridge Host URL and Port first",
+  "station.settings.rigControl.wsjtxRelay.status.error.push": "Could not reach rig-bridge — check that it is running and the Host URL/Port are correct"
 }

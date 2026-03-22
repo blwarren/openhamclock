@@ -235,9 +235,29 @@ You should see:
 
 The WSJT-X Relay is an **integration plugin** (not a radio plugin) that listens for WSJT-X UDP packets on the local machine and forwards decoded messages to an OpenHamClock server in real-time. This lets OpenHamClock display your FT8/FT4 decodes as DX spots without any manual intervention.
 
-### Setup
+### Getting your relay credentials
 
-Edit `rig-bridge-config.json`:
+The relay requires two values from your OpenHamClock server: a **relay key** and a **session ID**. There are two ways to set them up:
+
+#### Option A — Auto-configure from OpenHamClock (recommended)
+
+1. Open **OpenHamClock** → **Settings** → **Station Settings** → **Rig Control**
+2. Make sure Rig Control is enabled and the rig-bridge Host URL/Port are filled in
+3. Scroll to the **WSJT-X Relay** sub-section
+4. Note your **Session ID** (copy it with the 📋 button)
+5. Click **Configure Relay on Rig Bridge** — OpenHamClock fetches the relay key from its own server and pushes both credentials directly to rig-bridge in one step
+
+#### Option B — Fetch from rig-bridge setup UI
+
+1. Open **http://localhost:5555** → **Integrations** tab
+2. Enable the WSJT-X Relay checkbox and enter the OpenHamClock Server URL
+3. Click **🔗 Fetch credentials** — rig-bridge retrieves the relay key automatically
+4. Copy your **Session ID** from OpenHamClock → Settings → Station → Rig Control → WSJT-X Relay and paste it into the Session ID field
+5. Click **Save Integrations**
+
+#### Option C — Manual config
+
+Edit `rig-bridge-config.json` directly:
 
 ```json
 {
@@ -256,11 +276,13 @@ Edit `rig-bridge-config.json`:
 }
 ```
 
+### Config reference
+
 | Field                | Description                                             | Default                    |
 | -------------------- | ------------------------------------------------------- | -------------------------- |
 | `enabled`            | Activate the relay on startup                           | `false`                    |
 | `url`                | OpenHamClock server URL                                 | `https://openhamclock.com` |
-| `key`                | Relay authentication key (from your OHC account)        | —                          |
+| `key`                | Relay authentication key (from your OHC server)         | —                          |
 | `session`            | Browser session ID for per-user isolation               | —                          |
 | `udpPort`            | UDP port WSJT-X is sending to                           | `2237`                     |
 | `batchInterval`      | How often decoded messages are sent (ms)                | `2000`                     |
